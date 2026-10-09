@@ -1,235 +1,257 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aether-NN: Laboratorio Interactivo de k-NN & Fronteras de Decisión</title>
-  
+  <title>Explorador Visual de k-NN & Fronteras de Decisión</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- MathJax para fórmulas matemáticas -->
+  <!-- MathJax -->
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
   <style>
     canvas { touch-action: none; }
-    .glass-card {
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .glow-cyan {
-      box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.4);
-    }
-    /* Estilo para los cuadros de código de prompts */
-    .prompt-box {
-      background-color: rgba(2, 6, 23, 0.85);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
 
-  <!-- ENCABEZADO Y SELECTORES -->
-  <header class="bg-slate-900/90 border-b border-slate-800/80 py-4 px-6 sticky top-0 z-50 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+  <!-- ENCABEZADO PRINCIPAL -->
+  <header class="bg-slate-900 border-b border-slate-800 py-3 px-4 md:px-6 sticky top-0 z-50 shadow-2xl backdrop-blur-md bg-opacity-95">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
       <div class="flex items-center gap-3">
-        <div class="p-2.5 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-2xl shadow-lg shadow-cyan-500/20">
-          <i class="fa-solid fa-atom text-white text-2xl animate-spin-slow"></i>
+        <div class="p-2 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+          <i class="fa-solid fa-network-wired text-white text-lg"></i>
         </div>
         <div>
-          <h1 class="text-xl font-black tracking-wider bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-            AETHER k-NN LAB
+          <h1 class="text-lg font-extrabold bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300 bg-clip-text text-transparent">
+            k-NN Visual Decision Lab
           </h1>
-          <p class="text-xs text-slate-400 font-medium">Visualización de Fronteras de Decisión en Tiempo Real</p>
+          <p class="text-xs text-slate-400">Mapas de decisión interactivos en tiempo real</p>
         </div>
       </div>
-      
-      <!-- Selector de Modo de Explicación -->
-      <div class="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 shadow-inner gap-1">
-        <button id="btnModeGeneric" onclick="setMode('generic')" class="px-4 py-2 text-xs font-bold rounded-lg transition-all bg-cyan-600 text-white shadow-md">
-          <i class="fa-solid fa-shapes mr-1.5"></i> 1. Modo Genérico (2 Variables)
+
+      <!-- Modos de Explicación y Sonido -->
+      <div class="flex items-center gap-2">
+        <button id="btnSound" onclick="toggleSound()" class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+          <i id="soundIcon" class="fa-solid fa-volume-xmark"></i> <span id="soundText">Radar Audio OFF</span>
         </button>
-        <button id="btnModeReal" onclick="setMode('real')" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all">
-          <i class="fa-solid fa-heart-pulse mr-1.5"></i> 2. Ejemplo Real (Riesgo Salud)
-        </button>
+
+        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner gap-1">
+          <button id="btnModeGeneric" onclick="setMode('generic')" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-cyan-600 text-white shadow-md">
+            <i class="fa-solid fa-shapes mr-1"></i>1. Modo Genérico (2D)
+          </button>
+          <button id="btnModeReal" onclick="setMode('real')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all">
+            <i class="fa-solid fa-heart-pulse mr-1"></i>2. Ejemplo Real (Salud)
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="max-w-7xl mx-auto w-full p-4 md:p-6 space-y-6 flex-1">
+  <!-- CONTENIDO PRINCIPAL ENMARCADO EN ANCHO MÁXIMO CONCURRENTE -->
+  <main class="max-w-7xl mx-auto w-full p-4 md:p-6 space-y-4 flex-1">
 
-    <!-- METRICAS DE CABECERA Y ESTADÍSTICAS -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      
-      <!-- PREDICCIÓN ACTUAL -->
-      <div class="glass-card rounded-2xl p-4 flex items-center gap-4 border border-cyan-500/20">
-        <div class="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
-          <i class="fa-solid fa-brain text-2xl"></i>
+    <!-- BARRA SUPERIOR DE ESTADÍSTICAS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex items-center gap-3">
+        <div class="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/20">
+          <i class="fa-solid fa-bullseye text-xl"></i>
         </div>
         <div>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Predicción k-NN</p>
-          <p id="statPrediction" class="text-base font-extrabold text-cyan-300">Ajustando sonda...</p>
+          <p class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Predicción Actual</p>
+          <p id="statPrediction" class="text-sm md:text-base font-extrabold text-slate-100">Sin seleccionar</p>
         </div>
       </div>
 
-      <!-- NIVEL DE CONFIANZA -->
-      <div class="glass-card rounded-2xl p-4 flex items-center gap-4">
-        <div class="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
-          <i class="fa-solid fa-chart-pie text-2xl"></i>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex items-center gap-3">
+        <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/20">
+          <i class="fa-solid fa-chart-line text-xl"></i>
         </div>
         <div>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nivel de Confianza</p>
-          <p id="statConfidence" class="text-base font-extrabold text-indigo-300">0%</p>
+          <p class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Nivel de Confianza</p>
+          <p id="statConfidence" class="text-sm md:text-base font-extrabold text-slate-100">0%</p>
         </div>
       </div>
 
-      <!-- ENTROPÍA DE SHANNON (Incertidumbre) -->
-      <div class="glass-card rounded-2xl p-4 flex items-center gap-4">
-        <div class="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
-          <i class="fa-solid fa-wave-square text-2xl"></i>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex items-center gap-3">
+        <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+          <i class="fa-solid fa-users text-xl"></i>
         </div>
         <div>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Incertidumbre (Entropía)</p>
-          <p id="statEntropy" class="text-base font-extrabold text-purple-300">0.00 bits</p>
+          <p class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Número de Vecinos</p>
+          <p id="statK" class="text-sm md:text-base font-extrabold text-slate-100">3 vecinos</p>
         </div>
       </div>
 
-      <!-- AUDIO SINESTÉSICO -->
-      <div class="glass-card rounded-2xl p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-            <i class="fa-solid fa-volume-high text-xl"></i>
-          </div>
-          <div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sonificación Audio</p>
-            <p id="audioStatusText" class="text-xs font-bold text-slate-300">Desactivado</p>
-          </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-lg flex items-center gap-3">
+        <div class="p-2.5 bg-amber-500/10 text-amber-400 rounded-lg border border-amber-500/20">
+          <i class="fa-solid fa-database text-xl"></i>
         </div>
-        <button id="btnToggleAudio" onclick="toggleAudio()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-700 hover:border-emerald-500 hover:text-emerald-400 transition">
-          Activar
-        </button>
+        <div>
+          <p class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Muestras</p>
+          <p id="statTotalPoints" class="text-sm md:text-base font-extrabold text-slate-100">0 puntos</p>
+        </div>
       </div>
-
     </div>
 
-    <!-- ÁREA DE TRABAJO: CANVAS E INTERACCIÓN -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- CANVA CON MAPA DE FRONTERA DE DECISIÓN -->
-      <div class="lg:col-span-2 flex flex-col gap-4">
-        <div class="glass-card rounded-3xl p-4 shadow-2xl relative flex flex-col items-center">
-          
-          <div class="w-full flex justify-between items-center mb-3 px-2">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
-              <span class="text-xs font-bold text-slate-300 tracking-wider">MAPA TÉRMICO DE FRONTERA DE DECISIÓN</span>
-            </div>
+    <!-- ÁREA DE TRABAJO PRINCIPAL: GRID PROPORCIONADO 7 COLUMNAS Y 5 COLUMNAS -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 
-            <div class="flex items-center gap-3">
-              <label class="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-200">
-                <input type="checkbox" id="chkBoundary" checked onchange="draw()" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
-                Ver Zonas de Color
+      <!-- LIENZO Y MAPA DE DECISIÓN (7 COLUMNAS) -->
+      <div class="lg:col-span-7 flex flex-col h-full">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl flex flex-col justify-between items-center h-full relative">
+
+          <div class="w-full flex justify-between items-center mb-2 px-1">
+            <span class="text-xs font-semibold text-slate-400 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Plano de Decisión Interactiva
+            </span>
+            <div class="flex items-center gap-3 text-xs text-slate-400">
+              <button id="btnRadarMode" onclick="toggleRadarMode()" class="text-purple-400 hover:text-purple-300 flex items-center gap-1 font-semibold transition">
+                <i class="fa-solid fa-radar"></i> <span id="radarToggleText">📡 Activar Lupa Sónica</span>
+              </button>
+              <button onclick="toggleGameMode()" class="text-cyan-400 hover:underline flex items-center gap-1 font-semibold">
+                <i class="fa-solid fa-gamepad"></i> <span id="gameToggleText">Activar Juego</span>
+              </button>
+              <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200">
+                <input type="checkbox" id="chkBoundary" checked onchange="updateAll()" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+                Ver Fronteras
               </label>
             </div>
           </div>
 
-          <div class="relative w-full aspect-square max-w-[620px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden cursor-crosshair glow-cyan">
+          <!-- BANNER MODO LUPA SÓNICA ÚNICO -->
+          <div id="radarBanner" class="hidden w-full bg-purple-950/70 border border-purple-500/40 rounded-xl p-2.5 mb-2 text-xs flex justify-between items-center">
+            <div class="space-y-0.5">
+              <p class="font-bold text-purple-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
+                Lupa Sónica de Escaneo Activa
+              </p>
+              <p id="radarFeedbackText" class="text-slate-300 font-mono">Mueve la lupa sobre el plano para escanear la densidad local de vecinos...</p>
+            </div>
+            <span id="radarAccuracyBadge" class="px-2.5 py-1 bg-purple-900/80 text-purple-200 rounded-lg font-bold border border-purple-500/30">
+              Escaneando...
+            </span>
+          </div>
+
+          <!-- BANNER MODO JUEGO -->
+          <div id="gameBanner" class="hidden w-full bg-cyan-950/60 border border-cyan-500/30 rounded-xl p-2.5 mb-2 text-xs flex justify-between items-center">
+            <div>
+              <p class="font-bold text-cyan-300">🎮 Desafío: Adivina la Clase del Punto Púrpura</p>
+              <p class="text-slate-400">Calcula visualmente los vecinos cercanos y selecciona tu predicción.</p>
+            </div>
+            <div class="flex gap-1.5">
+              <button onclick="guessClass('A')" class="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white font-bold text-xs">Clase A</button>
+              <button onclick="guessClass('B')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 rounded-lg text-white font-bold text-xs">Clase B</button>
+              <button onclick="guessClass('C')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-bold text-xs">Clase C</button>
+            </div>
+          </div>
+
+          <!-- CUADRADO DEL CANVAS CON TAMAÑO CONTROLADO -->
+          <div class="relative w-full aspect-square max-w-[550px] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden cursor-crosshair shadow-inner my-auto">
             <canvas id="knnCanvas" width="600" height="600" class="w-full h-full block"></canvas>
           </div>
 
-          <div class="w-full mt-3 flex justify-between items-center text-[11px] text-slate-400 px-2">
-            <span>🖱️ <b>Arrastra en vivo</b> la sonda blanca o cualquier punto para deformar la frontera.</span>
-            <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-hand-pointer mr-1"></i> Interactivo 60 FPS</span>
-          </div>
-
+          <p class="text-xs text-slate-400 mt-2 text-center">
+            🖱️ <b>Haz clic o arrastra</b> en el plano para mover puntos existentes o la consulta.
+          </p>
         </div>
       </div>
 
-      <!-- PANEL LATERAL DE CONTROLES -->
-      <div class="flex flex-col gap-5">
-        
-        <!-- Herramientas de Edición de Datos -->
-        <div class="glass-card rounded-2xl p-5 space-y-4">
-          <h2 class="text-xs font-bold text-slate-300 uppercase tracking-widest border-b border-slate-800 pb-2">
-            <i class="fa-solid fa-pen-ruler mr-1.5 text-cyan-400"></i> Herramienta de Clic
-          </h2>
-          
+      <!-- PANEL LATERAL DERECHO (5 COLUMNAS) -->
+      <div class="lg:col-span-5 flex flex-col justify-between gap-3 h-full">
+
+        <!-- Herramientas de Edición -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">Herramienta de Clic</h2>
+
           <div class="grid grid-cols-2 gap-2">
-            <button id="toolQuery" onclick="setTool('query')" class="p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-md">
-              <i class="fa-solid fa-crosshairs"></i> Mover Sonda
+            <button id="toolQuery" onclick="setTool('query')" class="p-2 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all bg-cyan-500/20 border-cyan-500/40 text-cyan-300">
+              <i class="fa-solid fa-crosshairs"></i> Consulta
             </button>
-            <button id="toolClassA" onclick="setTool('A')" class="p-2.5 rounded-xl border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-all hover:bg-slate-800 text-cyan-400">
-              <i class="fa-solid fa-circle-plus"></i> + Clase A
+            <button id="toolClassA" onclick="setTool('A')" class="p-2 rounded-xl border border-slate-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-all hover:bg-slate-800 text-cyan-400">
+              <i class="fa-solid fa-plus"></i> Añadir Clase A
             </button>
-            <button id="toolClassB" onclick="setTool('B')" class="p-2.5 rounded-xl border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-all hover:bg-slate-800 text-amber-400">
-              <i class="fa-solid fa-circle-plus"></i> + Clase B
+            <button id="toolClassB" onclick="setTool('B')" class="p-2 rounded-xl border border-slate-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-all hover:bg-slate-800 text-amber-400">
+              <i class="fa-solid fa-plus"></i> Añadir Clase B
             </button>
-            <button id="toolClassC" onclick="setTool('C')" class="p-2.5 rounded-xl border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-all hover:bg-slate-800 text-emerald-400">
-              <i class="fa-solid fa-circle-plus"></i> + Clase C
+            <button id="toolClassC" onclick="setTool('C')" class="p-2 rounded-xl border border-slate-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-all hover:bg-slate-800 text-emerald-400">
+              <i class="fa-solid fa-plus"></i> Añadir Clase C
             </button>
           </div>
 
-          <!-- Selector de Vecinos K -->
-          <div class="pt-2">
+          <!-- Slider de Vecinos -->
+          <div class="pt-1">
             <div class="flex justify-between items-center mb-1">
-              <label for="kSlider" class="text-xs font-bold text-slate-300">Número de Vecinos ($k$):</label>
-              <span id="kValue" class="text-sm font-black text-cyan-400">3</span>
+              <label for="kSlider" class="text-xs font-medium text-slate-300">Número de vecinos:</label>
+              <span id="kValue" class="text-sm font-extrabold text-cyan-400">3</span>
             </div>
             <input id="kSlider" type="range" min="1" max="9" step="2" value="3" oninput="updateK(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
-            <p class="text-[10px] text-slate-500 mt-1">Valores impares ($1, 3, 5, 7, 9$) previenen empates matemáticos.</p>
           </div>
 
-          <!-- Botones de Acción -->
           <div class="flex gap-2 pt-1">
-            <button onclick="resetData()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-xl text-xs font-bold transition border border-slate-700">
+            <button onclick="resetData()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 rounded-xl text-xs font-medium transition">
               <i class="fa-solid fa-rotate-left mr-1"></i> Reiniciar
             </button>
-            <button onclick="generateRandomData()" class="flex-1 bg-cyan-700 hover:bg-cyan-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-900/30">
+            <button onclick="generateRandomData()" class="flex-1 bg-cyan-700 hover:bg-cyan-600 text-white py-1.5 rounded-xl text-xs font-medium transition">
               <i class="fa-solid fa-dice mr-1"></i> Aleatorio
             </button>
           </div>
         </div>
 
-        <!-- Conteo de Votos de los K Vecinos -->
-        <div class="glass-card rounded-2xl p-5 space-y-3">
-          <h2 class="text-xs font-bold text-slate-300 uppercase tracking-widest border-b border-slate-800 pb-2">
-            <i class="fa-solid fa-check-to-slot mr-1.5 text-indigo-400"></i> Desglose de Votación
-          </h2>
+        <!-- Votación de Vecinos -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">Distribución de Votos</h2>
 
           <div id="voteProgress" class="space-y-2.5">
             <div class="space-y-1">
-              <div class="flex justify-between text-xs text-slate-300 font-medium">
+              <div class="flex justify-between text-xs text-slate-300">
                 <span id="labelA">Clase A</span>
                 <span id="countA">0 votos</span>
               </div>
-              <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
-                <div id="barA" class="bg-cyan-400 h-full transition-all duration-300" style="width: 0%"></div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div id="barA" class="bg-cyan-500 h-full transition-all duration-300" style="width: 0%"></div>
               </div>
             </div>
 
             <div class="space-y-1">
-              <div class="flex justify-between text-xs text-slate-300 font-medium">
+              <div class="flex justify-between text-xs text-slate-300">
                 <span id="labelB">Clase B</span>
                 <span id="countB">0 votos</span>
               </div>
-              <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
-                <div id="barB" class="bg-amber-400 h-full transition-all duration-300" style="width: 0%"></div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div id="barB" class="bg-amber-500 h-full transition-all duration-300" style="width: 0%"></div>
               </div>
             </div>
 
-            <div class="space-y-1">
-              <div class="flex justify-between text-xs text-slate-300 font-medium">
+            <div id="containerClassC" class="space-y-1">
+              <div class="flex justify-between text-xs text-slate-300">
                 <span id="labelC">Clase C</span>
                 <span id="countC">0 votos</span>
               </div>
-              <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
-                <div id="barC" class="bg-emerald-400 h-full transition-all duration-300" style="width: 0%"></div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div id="barC" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DICCIONARIO DE CLASES -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2 flex-1 flex flex-col justify-between">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">Diccionario de Clases</h2>
+          <div class="space-y-2 text-xs flex-1 flex flex-col justify-around">
+            <div class="p-2 rounded-xl bg-cyan-950/40 border border-cyan-500/20 space-y-0.5">
+              <p class="font-bold text-cyan-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Clase A</p>
+              <p id="descA" class="text-slate-300 text-[11px] leading-tight">Grupo principal de datos tipo A (Cyan).</p>
+            </div>
+            <div class="p-2 rounded-xl bg-amber-950/40 border border-amber-500/20 space-y-0.5">
+              <p class="font-bold text-amber-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Clase B</p>
+              <p id="descB" class="text-slate-300 text-[11px] leading-tight">Grupo de datos tipo B (Naranja).</p>
+            </div>
+            <div class="p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/20 space-y-0.5">
+              <p class="font-bold text-emerald-400 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Clase C</p>
+              <p id="descC" class="text-slate-300 text-[11px] leading-tight">Grupo de datos tipo C (Verde).</p>
             </div>
           </div>
         </div>
@@ -237,150 +259,161 @@
       </div>
     </div>
 
-    <!-- CASOS HISTÓRICOS Y EJEMPLO REAL EXPLICADO -->
-    <div id="realExampleSection" class="glass-card rounded-3xl p-6 space-y-4">
-      <div class="flex items-center gap-3 border-b border-slate-800 pb-3">
-        <i class="fa-solid fa-notes-medical text-rose-400 text-xl"></i>
-        <h3 class="text-base font-extrabold text-slate-100">Contexto Aplicado: Diagnóstico Médico Predictivo</h3>
+    <!-- CASOS HISTÓRICOS Y EXPLICACIÓN CLÍNICA COMPLETA -->
+    <div id="realExampleSection" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div class="flex items-center gap-3">
+          <i id="contextIcon" class="fa-solid fa-notes-medical text-rose-400 text-lg"></i>
+          <h3 id="contextTitle" class="text-base font-bold text-slate-100">Caso Práctico Real: Diagnóstico Cardíaco Predictivo</h3>
+        </div>
+        <span id="badgeDiagnosis" class="text-xs px-3 py-1 rounded-full font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+          Diagnóstico en Tiempo Real
+        </span>
       </div>
-      
-      <p id="contextText" class="text-xs text-slate-300 leading-relaxed">
-        Clasificación de riesgo de salud en tiempo real. Eje X = **Presión Arterial Sistólica (mmHg)**, Eje Y = **Nivel de Colesterol Serum (mg/dL)**. La sonda calcula la proximidad euclidiana con la base histórica de pacientes.
-      </p>
 
-      <!-- Tabla de Vecinos Históricos Similares -->
-      <div class="space-y-2 pt-2">
-        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historiales Médicos de los $k$ Vecinos Más Cercanos:</h4>
+      <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interpretación Clínica Actual:</h4>
+        <p id="contextText" class="text-xs md:text-sm text-slate-200 leading-relaxed font-medium">
+          Moviendo punto de consulta...
+        </p>
+      </div>
+
+      <div class="space-y-1.5">
+        <h4 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Historiales de Pacientes Más Similares Encontrados:</h4>
         <div id="neighborHistoryList" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <!-- Se rellena con JS -->
+          <p class="text-xs text-slate-500 col-span-3">Haz clic en el plano para calcular similitudes con pacientes históricos.</p>
         </div>
       </div>
     </div>
 
-    <!-- SECCIÓN DE PROMPTS UTILIZADOS (PARA COPIAR AL README / GITHUB) -->
-    <section class="glass-card rounded-3xl p-6 space-y-6">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+    <!-- SECCIÓN DE PROMPTS PARA GITHUB -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-3">
-          <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
-            <i class="fa-brands fa-github text-2xl"></i>
+          <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+            <i class="fa-brands fa-github text-lg"></i>
           </div>
           <div>
-            <h3 class="text-base font-extrabold text-slate-100">Prompts Utilizados para este Proyecto</h3>
-            <p class="text-xs text-slate-400">Puedes copiar directamente estos mensajes para incluir en tu README.md de GitHub</p>
+            <h3 class="text-base font-bold text-slate-100">Prompts Utilizados para la Creación del Proyecto</h3>
+            <p class="text-xs text-slate-400">Copia estos textos directamente para la documentación de tu repositorio de GitHub</p>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-5">
-        
-        <!-- PROMPT 1 -->
-        <div class="prompt-box border border-slate-800 rounded-2xl p-4 space-y-3">
-          <div class="flex justify-between items-center border-b border-slate-800/80 pb-2">
-            <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider">
-              <i class="fa-solid fa-terminal mr-1.5"></i> Prompt Original 1: Creación Básica
-            </span>
-            <button onclick="copyPrompt('prompt1Text')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-              <i class="fa-regular fa-copy"></i> Copiar Prompt
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider">Prompt 1: Algoritmo Base & 2D</span>
+            <button onclick="copyPrompt('prompt1')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition flex items-center gap-1">
+              <i class="fa-regular fa-copy"></i> Copiar
             </button>
           </div>
-          <p id="prompt1Text" class="text-xs text-slate-300 font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap">vamos a haerr una actividad de clase: conseguir un html donde de manera animada o nosotros toqueteando expilquemos ese algoritmos de forma visual, comentame el codigo, que se entienda super sper bien el kmnn, funciona bien con pocos datos, lo vimos en dos variables y tal, primero explicar de forma genérica, asi funciona, mira si pongo aqui un puntito, tal mira como se rodea bla bla, y después mas específico, un ejemplo real simple cotidiano donde puede aplicar el knn  , despues en el github donde subiremos mis cosas, haré un readme pero de los promts que he utilizado asi que eso seria todo ,. asi que pásame el html, se directo, super entendible, simple</p>
+          <p id="prompt1" class="text-xs text-slate-300 font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800 leading-relaxed overflow-x-auto">
+"vamos a hacer una actividad de clase: conseguir un html donde de manera animada o nosotros toqueteando explicemos ese algoritmo de forma visual, comentame el codigo, que se entienda super super bien el knn, funciona bien con pocos datos en dos variables..."
+          </p>
         </div>
 
-        <!-- PROMPT 2 -->
-        <div class="prompt-box border border-slate-800 rounded-2xl p-4 space-y-3">
-          <div class="flex justify-between items-center border-b border-slate-800/80 pb-2">
-            <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">
-              <i class="fa-solid fa-terminal mr-1.5"></i> Prompt Original 2: Fronteras de Decisión y Estadísticas
-            </span>
-            <button onclick="copyPrompt('prompt2Text')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-              <i class="fa-regular fa-copy"></i> Copiar Prompt
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Prompt 2: Optimización de FPS</span>
+            <button onclick="copyPrompt('prompt2')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition flex items-center gap-1">
+              <i class="fa-regular fa-copy"></i> Copiar
             </button>
           </div>
-          <p id="prompt2Text" class="text-xs text-slate-300 font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap">en el html agrega osea la ,mapa de decision, que se vea bien bonito al clickear, mientras arrastra en tiempo real se ve todo el cambio y asi, las zonas, que esten de colores o algo asi, ques epuedan mpver puntos, clases, osea clase, a b y asi, arriba que se vean las estadisticas y tal, preddiccion, nose cosas asi y ejemplo real que sea algo mas real que sea bien hecho el ejemplo, con sus `prias estadisticas y opciones, que el puntito me ponga la clase que es y etc, casos historicos somilares y las stats, y asi, que explique un titulito la decision la salida cuales son etc, mas abajo apartado de promts usados, y con texto, con cuadritos y que se puedan copiar y cosas asi creativas</p>
+          <p id="prompt2" class="text-xs text-slate-300 font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800 leading-relaxed overflow-x-auto">
+"Optimiza el rendimiento del canvas para renderizar las fronteras a 60 FPS sin tirones, manteniendo la lupa del radar firme y estática..."
+          </p>
         </div>
-
       </div>
     </section>
 
   </main>
 
-  <!-- LÓGICA COMPLETA DE JAVASCRIPT -->
+  <!-- LÓGICA JAVASCRIPT COMPLETA Y OPTIMIZADA -->
   <script>
     // =========================================================================
-    // 1. ESTADO GLOBAL Y CONFIGURACIÓN
+    // 1. ESTADO Y CONFIGURACIÓN GLOBAL
     // =========================================================================
     const canvas = document.getElementById('knnCanvas');
     const ctx = canvas.getContext('2d');
 
-    let currentMode = 'generic'; // 'generic' o 'real'
-    let currentTool = 'query';   // 'query', 'A', 'B', 'C'
+    let currentMode = 'generic'; 
+    let currentTool = 'query';   
     let kValue = 3;
     let dataset = [];
     let queryPoint = { x: 300, y: 300 };
-    let draggingTarget = null; // Guarda qué punto se está arrastrando
-
-    // Audio Web API
+    let draggingPoint = null;
+    let soundEnabled = false;
     let audioCtx = null;
-    let audioEnabled = false;
-    let mainOscillator = null;
-    let mainGain = null;
+    
+    let isGameActive = false;
+    let isRadarActive = false;
+    let gameTarget = null;
+    let radarPulseAngle = 0;
 
     const COLORS = {
-      A: { primary: '#06b6d4', rgb: [6, 182, 212], name: 'Clase A (Azul)' },
-      B: { primary: '#f59e0b', rgb: [245, 158, 11], name: 'Clase B (Naranja)' },
-      C: { primary: '#10b981', rgb: [16, 185, 129], name: 'Clase C (Verde)' }
+      A: { primary: '#06b6d4', fill: 'rgba(6, 182, 212, 0.25)' },
+      B: { primary: '#f59e0b', fill: 'rgba(245, 158, 11, 0.25)' },
+      C: { primary: '#10b981', fill: 'rgba(16, 185, 129, 0.25)' }
     };
 
-    const REAL_CLASSES = {
-      A: { name: 'Riesgo Bajo (Normotenso)', color: '#06b6d4' },
-      B: { name: 'Riesgo Alto (Hipertensión/Alerta)', color: '#f59e0b' },
-      C: { name: 'Riesgo Moderado (En Observación)', color: '#10b981' }
+    const CLASS_TEXTS = {
+      generic: {
+        A: { name: 'Clase A', desc: 'Grupo principal de datos tipo A (Cyan).' },
+        B: { name: 'Clase B', desc: 'Grupo de datos tipo B (Naranja).' },
+        C: { name: 'Clase C', desc: 'Grupo de datos tipo C (Verde).' }
+      },
+      real: {
+        A: { name: 'Riesgo Bajo (Saludable)', desc: 'Presión arterial y colesterol dentro de rangos normales.' },
+        B: { name: 'Riesgo Alto (Crítico)', desc: 'Niveles elevados en ambas métricas. Requiere atención inmediata.' },
+        C: { name: 'Riesgo Moderado (Alerta)', desc: 'Valores en límite superior. Se recomienda seguimiento preventivo.' }
+      }
     };
 
-    // Offscreen Canvas para rendimiento fluido de la Frontera de Decisión
+    // OPTIMIZACIÓN EXTREMA DE FPS: Canvas minúsculo de 30x30 para renderizado instantáneo
     const bgCanvas = document.createElement('canvas');
-    bgCanvas.width = 100;
-    bgCanvas.height = 100;
+    bgCanvas.width = 30;
+    bgCanvas.height = 30;
     const bgCtx = bgCanvas.getContext('2d');
 
     // =========================================================================
-    // 2. INICIALIZACIÓN DE CONJUNTOS DE DATOS
+    // 2. INICIALIZACIÓN DE DATOS
     // =========================================================================
     function initData() {
       dataset = [];
       
       if (currentMode === 'generic') {
         dataset = [
-          { x: 140, y: 150, category: 'A' },
-          { x: 190, y: 230, category: 'A' },
-          { x: 230, y: 140, category: 'A' },
-          { x: 160, y: 290, category: 'A' },
-          
-          { x: 440, y: 430, category: 'B' },
-          { x: 490, y: 360, category: 'B' },
-          { x: 390, y: 470, category: 'B' },
-          { x: 430, y: 490, category: 'B' },
+          { x: 120, y: 140, category: 'A' },
+          { x: 180, y: 220, category: 'A' },
+          { x: 220, y: 120, category: 'A' },
+          { x: 150, y: 280, category: 'A' },
 
-          { x: 460, y: 160, category: 'C' },
-          { x: 490, y: 230, category: 'C' },
-          { x: 400, y: 190, category: 'C' }
+          { x: 450, y: 420, category: 'B' },
+          { x: 480, y: 350, category: 'B' },
+          { x: 380, y: 460, category: 'B' },
+          { x: 420, y: 480, category: 'B' },
+
+          { x: 450, y: 150, category: 'C' },
+          { x: 480, y: 220, category: 'C' },
+          { x: 390, y: 180, category: 'C' }
         ];
       } else {
-        // Ejemplo Médico: Presión Arterial vs Colesterol
         dataset = [
-          { x: 150, y: 440, category: 'A', name: 'Paciente #102', info: 'Presión: 110/70, Col: 160' },
-          { x: 180, y: 410, category: 'A', name: 'Paciente #105', info: 'Presión: 115/75, Col: 175' },
-          { x: 210, y: 470, category: 'A', name: 'Paciente #108', info: 'Presión: 120/80, Col: 150' },
+          { x: 140, y: 460, category: 'A', name: 'Paciente #101' },
+          { x: 180, y: 420, category: 'A', name: 'Paciente #104' },
+          { x: 210, y: 490, category: 'A', name: 'Paciente #109' },
 
-          { x: 420, y: 180, category: 'B', name: 'Paciente #201', info: 'Presión: 160/100, Col: 280' },
-          { x: 460, y: 150, category: 'B', name: 'Paciente #204', info: 'Presión: 170/105, Col: 310' },
-          { x: 390, y: 220, category: 'B', name: 'Paciente #209', info: 'Presión: 155/95, Col: 260' },
+          { x: 430, y: 160, category: 'B', name: 'Paciente #202' },
+          { x: 470, y: 130, category: 'B', name: 'Paciente #205' },
+          { x: 390, y: 200, category: 'B', name: 'Paciente #210' },
 
-          { x: 300, y: 300, category: 'C', name: 'Paciente #303', info: 'Presión: 135/85, Col: 210' },
-          { x: 340, y: 330, category: 'C', name: 'Paciente #307', info: 'Presión: 140/88, Col: 225' }
+          { x: 300, y: 310, category: 'C', name: 'Paciente #301' },
+          { x: 340, y: 350, category: 'C', name: 'Paciente #308' }
         ];
       }
 
+      updateClassDictionaryUI();
       updateAll();
     }
 
@@ -398,7 +431,7 @@
     }
 
     // =========================================================================
-    // 3. MATEMÁTICA k-NN Y ENTROPÍA DE SHANNON
+    // 3. MATEMÁTICAS k-NN
     // =========================================================================
     function euclideanDistance(p1, p2) {
       const dx = p1.x - p2.x;
@@ -424,28 +457,13 @@
       if (votes.B > votes[winner]) winner = 'B';
       if (votes.C > votes[winner]) winner = 'C';
 
-      // Cálculo de Entropía de Shannon: H(X) = -sum(p * log2(p))
-      let entropy = 0;
-      Object.values(votes).forEach(count => {
-        if (count > 0) {
-          const p = count / kNeighbors.length;
-          entropy -= p * Math.log2(p);
-        }
-      });
-
       const maxDistance = kNeighbors[kNeighbors.length - 1].dist;
 
-      return {
-        winner,
-        votes,
-        kNeighbors,
-        maxDistance,
-        entropy
-      };
+      return { winner, votes, kNeighbors, maxDistance };
     }
 
     // =========================================================================
-    // 4. DIBUJO DE FRONTERAS Y CANVAS
+    // 4. RENDERIZADO ULTRARRÁPIDO
     // =========================================================================
     function drawDecisionBoundary() {
       if (!document.getElementById('chkBoundary').checked || !dataset.length) return;
@@ -459,49 +477,64 @@
         for (let x = 0; x < w; x++) {
           const canvasX = (x / w) * canvas.width;
           const canvasY = (y / h) * canvas.height;
-          
+
           const result = classifyKNN({ x: canvasX, y: canvasY }, kValue);
           const idx = (y * w + x) * 4;
 
           if (result) {
-            const rgb = COLORS[result.winner].rgb;
-            data[idx] = rgb[0];
-            data[idx+1] = rgb[1];
-            data[idx+2] = rgb[2];
-            data[idx+3] = 75; // Transparencia suave
+            if (result.winner === 'A') {
+              data[idx] = 6; data[idx+1] = 182; data[idx+2] = 212;
+            } else if (result.winner === 'B') {
+              data[idx] = 245; data[idx+1] = 158; data[idx+2] = 11;
+            } else {
+              data[idx] = 16; data[idx+1] = 185; data[idx+2] = 129;
+            }
+            data[idx+3] = 70;
           }
         }
       }
 
       bgCtx.putImageData(imgData, 0, 0);
+      ctx.imageSmoothingEnabled = true; // Escalado suave
       ctx.drawImage(bgCanvas, 0, 0, canvas.width, canvas.height);
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Dibujar Mapa de Frontera de Decisión
       drawDecisionBoundary();
-
-      // 2. Cuadrícula
       drawGrid();
 
-      // 3. Renderizar vecino y líneas
       if (queryPoint && dataset.length) {
         const result = classifyKNN(queryPoint);
 
-        // Circunferencia envolvente de los K vecinos
+        // LUPA FIRME Y ESTÁTICA
         ctx.beginPath();
         ctx.arc(queryPoint.x, queryPoint.y, result.maxDistance, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.setLineDash([6, 6]);
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.setLineDash([]);
+        
+        if (isRadarActive) {
+          ctx.fillStyle = 'rgba(168, 85, 247, 0.12)';
+          ctx.fill();
+          ctx.strokeStyle = '#c084fc';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
 
-        // Líneas a cada vecino
+          // Puntero interior sutil
+          ctx.beginPath();
+          ctx.arc(queryPoint.x, queryPoint.y, result.maxDistance * 0.5, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(233, 213, 255, 0.3)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.setLineDash([5, 5]);
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
         result.kNeighbors.forEach(neighbor => {
           ctx.beginPath();
           ctx.moveTo(queryPoint.x, queryPoint.y);
@@ -512,23 +545,42 @@
         });
       }
 
-      // 4. Dibujar puntos del Dataset
       dataset.forEach(point => {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, 9, 0, Math.PI * 2);
+        ctx.arc(point.x, point.y, 13, 0, Math.PI * 2);
+        ctx.fillStyle = COLORS[point.category].fill;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
         ctx.fillStyle = COLORS[point.category].primary;
         ctx.fill();
-        ctx.strokeStyle = '#020617';
-        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
         ctx.stroke();
       });
 
-      // 5. Dibujar Sonda de Consulta de Usuario
       if (queryPoint) {
         const res = classifyKNN(queryPoint);
+        
         ctx.beginPath();
-        ctx.arc(queryPoint.x, queryPoint.y, 11, 0, Math.PI * 2);
+        ctx.arc(queryPoint.x, queryPoint.y, 15, 0, Math.PI * 2);
+        ctx.fillStyle = res ? COLORS[res.winner].fill : 'rgba(255,255,255,0.2)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(queryPoint.x, queryPoint.y, 10, 0, Math.PI * 2);
         ctx.fillStyle = res ? COLORS[res.winner].primary : '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      if (isGameActive && gameTarget) {
+        ctx.beginPath();
+        ctx.arc(gameTarget.x, gameTarget.y, 12, 0, Math.PI * 2);
+        ctx.fillStyle = '#a855f7';
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 3;
@@ -541,33 +593,27 @@
       ctx.lineWidth = 0.8;
 
       for (let x = 0; x < canvas.width; x += 60) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
       }
       for (let y = 0; y < canvas.height; y += 60) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
 
       if (currentMode === 'real') {
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '11px sans-serif';
-        ctx.fillText('Presión Arterial (mmHg) ➡️', canvas.width - 160, canvas.height - 15);
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('Presión Arterial (Sistólica) ➡️', canvas.width - 180, canvas.height - 15);
 
         ctx.save();
-        ctx.translate(20, 160);
+        ctx.translate(20, 180);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText('Colesterol (mg/dL) ➡️', 0, 0);
+        ctx.fillText('Nivel de Colesterol (mg/dL) ➡️', 0, 0);
         ctx.restore();
       }
     }
 
     // =========================================================================
-    // 5. INTERACCIONES Y ARRASTRE
+    // 5. EVENTOS E INTERACCIÓN
     // =========================================================================
     function getCanvasCoords(e) {
       const rect = canvas.getBoundingClientRect();
@@ -580,20 +626,17 @@
     canvas.addEventListener('mousedown', (e) => {
       const pos = getCanvasCoords(e);
 
-      // Si clic cerca de la sonda
-      if (queryPoint && euclideanDistance(pos, queryPoint) < 16) {
-        draggingTarget = 'query';
+      if (queryPoint && euclideanDistance(pos, queryPoint) < 18) {
+        draggingPoint = 'query';
         return;
       }
 
-      // Si clic cerca de un punto existente del dataset
       const clickedData = dataset.find(p => euclideanDistance(pos, p) < 14);
       if (clickedData) {
-        draggingTarget = clickedData;
+        draggingPoint = clickedData;
         return;
       }
 
-      // De lo contrario, aplicar la herramienta seleccionada
       if (currentTool === 'query') {
         queryPoint = pos;
       } else {
@@ -604,93 +647,42 @@
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!draggingTarget) return;
+      if (!draggingPoint) return;
       const pos = getCanvasCoords(e);
 
-      if (draggingTarget === 'query') {
+      if (draggingPoint === 'query') {
         queryPoint = pos;
+        if (soundEnabled) playDistanceSound();
       } else {
-        draggingTarget.x = pos.x;
-        draggingTarget.y = pos.y;
+        draggingPoint.x = pos.x;
+        draggingPoint.y = pos.y;
       }
 
       updateAll();
     });
 
     window.addEventListener('mouseup', () => {
-      draggingTarget = null;
+      draggingPoint = null;
     });
 
     // =========================================================================
-    // 6. SINESTESIA AUDIO EN TIEMPO REAL
-    // =========================================================================
-    function toggleAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        mainGain = audioCtx.createGain();
-        mainGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        
-        mainOscillator = audioCtx.createOscillator();
-        mainOscillator.type = 'sine';
-        mainOscillator.start();
-        mainOscillator.connect(mainGain);
-        mainGain.connect(audioCtx.destination);
-      }
-
-      audioEnabled = !audioEnabled;
-      const btn = document.getElementById('btnToggleAudio');
-      const text = document.getElementById('audioStatusText');
-
-      if (audioEnabled) {
-        audioCtx.resume();
-        btn.innerText = 'Desactivar';
-        btn.className = "px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white shadow-md transition";
-        text.innerText = "Reproduciendo";
-        updateAudioTone();
-      } else {
-        audioCtx.suspend();
-        btn.innerText = 'Activar';
-        btn.className = "px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-700 hover:border-emerald-500 hover:text-emerald-400 transition";
-        text.innerText = "Desactivar";
-      }
-    }
-
-    function updateAudioTone() {
-      if (!audioEnabled || !mainOscillator || !queryPoint) return;
-      
-      const res = classifyKNN(queryPoint);
-      if (!res) return;
-
-      const freqs = { A: 261.63, B: 329.63, C: 392.00 }; // Notas Do, Mi, Sol
-      const baseFreq = freqs[res.winner] || 300;
-      const pitchMod = (queryPoint.y / canvas.height) * 100;
-
-      mainOscillator.frequency.setTargetAtTime(baseFreq + pitchMod, audioCtx.currentTime, 0.05);
-    }
-
-    // =========================================================================
-    // 7. ACTUALIZACIÓN DE UI Y ESTADÍSTICAS
+    // 6. ACTUALIZACIÓN DE INTERFAZ Y CLÍNICA
     // =========================================================================
     function updateAll() {
       draw();
-      updateAudioTone();
 
       if (!queryPoint || !dataset.length) return;
 
       const result = classifyKNN(queryPoint);
-
-      const nameA = currentMode === 'real' ? REAL_CLASSES.A.name : 'Clase A';
-      const nameB = currentMode === 'real' ? REAL_CLASSES.B.name : 'Clase B';
-      const nameC = currentMode === 'real' ? REAL_CLASSES.C.name : 'Clase C';
-
-      const names = { A: nameA, B: nameB, C: nameC };
-      document.getElementById('statPrediction').innerText = names[result.winner];
+      const texts = CLASS_TEXTS[currentMode];
+      
+      document.getElementById('statPrediction').innerText = texts[result.winner].name;
       
       const confidence = Math.round((result.votes[result.winner] / kValue) * 100);
       document.getElementById('statConfidence').innerText = `${confidence}%`;
-      document.getElementById('statEntropy').innerText = `${result.entropy.toFixed(2)} bits`;
+      document.getElementById('statK').innerText = `${kValue} vecinos`;
+      document.getElementById('statTotalPoints').innerText = `${dataset.length} puntos`;
 
-      // Barras de Votos
       const pA = (result.votes.A / kValue) * 100;
       const pB = (result.votes.B / kValue) * 100;
       const pC = (result.votes.C / kValue) * 100;
@@ -703,8 +695,66 @@
       document.getElementById('countB').innerText = `${result.votes.B} votos`;
       document.getElementById('countC').innerText = `${result.votes.C} votos`;
 
-      // Lista de vecinos para el modo médico
+      updateClinicalExplanation(queryPoint, result);
       updateNeighborHistoryUI(result.kNeighbors);
+      updateRadarFeedback(result);
+    }
+
+    function updateRadarFeedback(result) {
+      if (!isRadarActive) return;
+
+      const feedback = document.getElementById('radarFeedbackText');
+      const badge = document.getElementById('radarAccuracyBadge');
+      const maxVotes = Math.max(result.votes.A, result.votes.B, result.votes.C);
+      const confidence = Math.round((maxVotes / kValue) * 100);
+
+      if (confidence === 100) {
+        feedback.innerText = `🔍 Escaneo homogéneo: Los ${kValue} vecinos concuerdan unánimemente en una sola clase.`;
+        badge.className = "px-2.5 py-1 bg-emerald-900/80 text-emerald-200 rounded-lg font-bold border border-emerald-500/30";
+        badge.innerText = `Certeza: ${confidence}%`;
+      } else if (confidence >= 60) {
+        feedback.innerText = `⚡ Zona de transición: Hay presencia de varias clases. El algoritmo aplica votación por mayoría.`;
+        badge.className = "px-2.5 py-1 bg-amber-900/80 text-amber-200 rounded-lg font-bold border border-amber-500/30";
+        badge.innerText = `Certeza: ${confidence}%`;
+      } else {
+        feedback.innerText = `🚨 Alta incertidumbre: Vecindario disperso con dispersión múltiple de votos.`;
+        badge.className = "px-2.5 py-1 bg-rose-900/80 text-rose-200 rounded-lg font-bold border border-rose-500/30";
+        badge.innerText = `Certeza: ${confidence}%`;
+      }
+    }
+
+    function updateClinicalExplanation(pos, result) {
+      const contextText = document.getElementById('contextText');
+      
+      if (currentMode === 'generic') {
+        contextText.innerHTML = `El punto de consulta está en las coordenadas <b>(${Math.round(pos.x)}, ${Math.round(pos.y)})</b>. Según los vecinos más cercanos, la clase predeterminada es <b>${CLASS_TEXTS.generic[result.winner].name}</b>.`;
+        return;
+      }
+
+      const sysBP = Math.round(80 + (pos.x / canvas.width) * 120);
+      const cholesterol = Math.round(350 - (pos.y / canvas.height) * 230);
+
+      let diagnosisMsg = "";
+      if (sysBP > 150 && cholesterol > 250) {
+        diagnosisMsg = `🚨 <b class="text-amber-400">Presión Alta (${sysBP} mmHg) y Colesterol Alto (${cholesterol} mg/dL):</b> El paciente presenta combinación de alto riesgo. Clasificado como <b>Riesgo Alto (Clase B)</b>.`;
+      } else if (sysBP < 125 && cholesterol < 190) {
+        diagnosisMsg = `✅ <b class="text-cyan-400">Presión Normal (${sysBP} mmHg) y Colesterol Óptimo (${cholesterol} mg/dL):</b> Área de parámetros saludables. Clasificado como <b>Riesgo Bajo (Clase A)</b>.`;
+      } else {
+        diagnosisMsg = `⚠️ <b class="text-emerald-400">Valores Intermedios (${sysBP} mmHg / ${cholesterol} mg/dL):</b> Paciente en seguimiento preventivo. Clasificado como <b>Riesgo Moderado (Clase C)</b>.`;
+      }
+
+      contextText.innerHTML = diagnosisMsg;
+    }
+
+    function updateClassDictionaryUI() {
+      const texts = CLASS_TEXTS[currentMode];
+      document.getElementById('labelA').innerText = texts.A.name;
+      document.getElementById('labelB').innerText = texts.B.name;
+      document.getElementById('labelC').innerText = texts.C.name;
+
+      document.getElementById('descA').innerText = texts.A.desc;
+      document.getElementById('descB').innerText = texts.B.desc;
+      document.getElementById('descC').innerText = texts.C.desc;
     }
 
     function updateNeighborHistoryUI(neighbors) {
@@ -714,19 +764,36 @@
       neighbors.forEach((item, idx) => {
         const p = item.point;
         const color = COLORS[p.category].primary;
-        
+
         const card = document.createElement('div');
-        card.className = "bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs space-y-1 shadow-md";
+        card.className = "bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs space-y-1";
         card.innerHTML = `
           <div class="flex justify-between items-center">
-            <span class="font-extrabold" style="color:${color}">${p.name || 'Punto Muestra #' + (idx+1)}</span>
-            <span class="text-slate-500 font-mono text-[10px]">${Math.round(item.dist)} px</span>
+            <span class="font-bold" style="color:${color}">${p.name || 'Muestra #' + (idx+1)}</span>
+            <span class="text-slate-500 font-mono">${Math.round(item.dist)} px</span>
           </div>
-          <p class="text-slate-300 font-medium">Categoría: <b>${p.category}</b></p>
-          <p class="text-[10px] text-slate-500">${p.info || 'Coordenadas: X=' + Math.round(p.x) + ', Y=' + Math.round(p.y)}</p>
+          <p class="text-slate-400">Clase: <b class="text-slate-200">${p.category}</b></p>
         `;
         list.appendChild(card);
       });
+    }
+
+    // =========================================================================
+    // 7. CONTROLES SECUNDARIOS
+    // =========================================================================
+    function toggleRadarMode() {
+      isRadarActive = !isRadarActive;
+      const banner = document.getElementById('radarBanner');
+      const text = document.getElementById('radarToggleText');
+
+      if (isRadarActive) {
+        banner.classList.remove('hidden');
+        text.innerText = "Desactivar Lupa Sónica";
+      } else {
+        banner.classList.add('hidden');
+        text.innerText = "📡 Activar Lupa Sónica";
+      }
+      updateAll();
     }
 
     function setTool(tool) {
@@ -734,9 +801,9 @@
       ['query', 'A', 'B', 'C'].forEach(t => {
         const btn = document.getElementById('tool' + (t === 'query' ? 'Query' : 'Class' + t));
         if (t === tool) {
-          btn.className = "p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-md";
+          btn.className = "p-2 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all bg-cyan-500/20 border-cyan-500/40 text-cyan-300";
         } else {
-          btn.className = "p-2.5 rounded-xl border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-all hover:bg-slate-800 text-slate-400";
+          btn.className = "p-2 rounded-xl border border-slate-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-all hover:bg-slate-800 text-slate-400";
         }
       });
     }
@@ -750,12 +817,12 @@
     function setMode(mode) {
       currentMode = mode;
       document.getElementById('btnModeGeneric').className = mode === 'generic' 
-        ? "px-4 py-2 text-xs font-bold rounded-lg transition-all bg-cyan-600 text-white shadow-md"
-        : "px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all";
+        ? "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-cyan-600 text-white shadow-md"
+        : "px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all";
 
       document.getElementById('btnModeReal').className = mode === 'real'
-        ? "px-4 py-2 text-xs font-bold rounded-lg transition-all bg-cyan-600 text-white shadow-md"
-        : "px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition-all";
+        ? "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-cyan-600 text-white shadow-md"
+        : "px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition-all";
 
       initData();
     }
@@ -764,13 +831,82 @@
       initData();
     }
 
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('btnSound');
+      const icon = document.getElementById('soundIcon');
+      const text = document.getElementById('soundText');
+
+      if (soundEnabled) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        btn.className = "px-3 py-1.5 text-xs font-semibold rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 transition-all flex items-center gap-1.5";
+        icon.className = "fa-solid fa-volume-high";
+        text.innerText = "Radar Audio ON";
+      } else {
+        btn.className = "px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-all flex items-center gap-1.5";
+        icon.className = "fa-solid fa-volume-xmark";
+        text.innerText = "Radar Audio OFF";
+      }
+    }
+
+    function playDistanceSound() {
+      if (!audioCtx || !soundEnabled) return;
+      const res = classifyKNN(queryPoint);
+      if (!res) return;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      const pitch = 200 + (1 - res.maxDistance / 400) * 600;
+      osc.frequency.value = Math.max(150, Math.min(1000, pitch));
+      
+      gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function toggleGameMode() {
+      isGameActive = !isGameActive;
+      const banner = document.getElementById('gameBanner');
+      const txt = document.getElementById('gameToggleText');
+
+      if (isGameActive) {
+        banner.classList.remove('hidden');
+        txt.innerText = "Desactivar Juego";
+        gameTarget = {
+          x: Math.random() * (canvas.width - 120) + 60,
+          y: Math.random() * (canvas.height - 120) + 60
+        };
+      } else {
+        banner.classList.add('hidden');
+        txt.innerText = "Activar Juego";
+        gameTarget = null;
+      }
+      draw();
+    }
+
+    function guessClass(guessed) {
+      if (!gameTarget) return;
+      const actual = classifyKNN(gameTarget).winner;
+      if (guessed === actual) {
+        alert('🎉 ¡Correcto! Tu predicción coincide con el cálculo del algoritmo k-NN.');
+      } else {
+        alert(`❌ Incorrecto. La respuesta correcta según k-NN era la Clase ${actual}.`);
+      }
+      toggleGameMode();
+    }
+
     function copyPrompt(id) {
       const text = document.getElementById(id).innerText;
       navigator.clipboard.writeText(text);
       alert('¡Prompt copiado al portapapeles!');
     }
 
-    // Inicialización
     initData();
   </script>
 </body>
